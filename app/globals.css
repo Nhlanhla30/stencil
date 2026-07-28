@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .flash-card {
+    @apply relative border-2 border-ink bg-paper;
+  }
+  .flash-card::before,
+  .flash-card::after,
+  .flash-card > .tick-b::before,
+  .flash-card > .tick-b::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-color: theme('colors.ink');
+    border-style: solid;
+    border-width: 0;
+  }
+  .flash-card::before { top: 5px; left: 5px; border-top-width: 2px; border-left-width: 2px; }
+  .flash-card::after { top: 5px; right: 5px; border-top-width: 2px; border-right-width: 2px; }
+  .flash-card > .tick-b::before { bottom: 5px; left: 5px; border-bottom-width: 2px; border-left-width: 2px; }
+  .flash-card > .tick-b::after { bottom: 5px; right: 5px; border-bottom-width: 2px; border-right-width: 2px; }
+
+  .btn {
+    @apply inline-block cursor-pointer border-2 px-5 py-2.5 font-head text-base font-bold uppercase tracking-wide transition-transform active:translate-x-0.5 active:translate-y-0.5;
+  }
+  .btn-primary { @apply btn border-stencil bg-stencil text-white shadow-press; }
+  .btn-ink { @apply btn border-ink bg-ink text-paper shadow-pressPurple; }
+  .btn-ghost { @apply btn border-ink bg-transparent text-ink; }
+
+  .field-label { @apply mb-2 block font-mono text-xs tracking-wider text-inksoft uppercase; }
+  .text-input { @apply w-full border-2 border-ink bg-white/60 p-3 font-body text-sm text-ink outline-none focus:border-stencil; }
+  .chip { @apply border-2 border-ink px-3 py-1.5 text-sm font-semibold; }
+}
+
+:root {
+  --font-mark: "Pirata One", serif;
+  --font-head: "Big Shoulders Display", sans-serif;
+  --font-body: "Archivo", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
