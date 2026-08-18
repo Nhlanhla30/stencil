@@ -16,12 +16,12 @@ const STATUS_COPY: Record<BookingStatus, { title: string; body: string; tone: st
   },
   awaiting_deposit: {
     title: "Accepted — deposit due",
-    body: "The artist accepted your request. Pay the protected deposit to lock in your slot.",
+    body: "The artist accepted your request. Pay the deposit and Stencil holds it automatically — your slot is locked the moment payment clears.",
     tone: "text-stencil",
   },
   confirmed: {
     title: "Booked & protected",
-    body: "Your deposit is held in escrow by Stencil. It's released to the artist 48 hours after your session, and auto-refunded if they cancel.",
+    body: "Your deposit is held safely in Stencil escrow and releases to the artist automatically 48 hours after your session. If the artist cancels, it refunds the same day.",
     tone: "text-flashgreen",
   },
   completed: {

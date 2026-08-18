@@ -42,7 +42,7 @@ export default async function PayPage({ params }: { params: { id: string } }) {
         </div>
 
         <ul className="mt-5 list-disc pl-5 text-xs leading-relaxed text-inksoft">
-          <li>Held by Stencil until 48 hours after your session.</li>
+          <li>Held by Stencil and released to the artist automatically 48 hours after your session.</li>
           <li>Artist cancels? Automatic full refund, same day.</li>
           <li>You cancel inside 72 hours? The deposit goes to the artist.</li>
         </ul>

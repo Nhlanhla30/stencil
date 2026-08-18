@@ -34,7 +34,7 @@ export default async function Home() {
         <div className="mt-6 grid gap-5 sm:grid-cols-3">
           {[
             { n: "01", t: "Client requests", d: "They fill in your booking form — size, placement, references. No payment yet. You accept or decline." },
-            { n: "02", t: "Deposit held", d: "On accept, the client pays the deposit into Stencil escrow. The slot is locked. Neither of you can be ghosted." },
+            { n: "02", t: "Deposit held", d: "On accept, the client pays once and Stencil handles everything automatically — deposit held in escrow, slot locked, no cash and no follow-up DMs needed." },
             { n: "03", t: "You get paid", d: "Session done: deposit releases to you within 48h. Client no-shows or cancels late: deposit is yours the same day." },
           ].map((s) => (
             <div key={s.n} className="flash-card p-5">

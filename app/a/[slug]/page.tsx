@@ -19,12 +19,12 @@ export default async function ArtistPage({ params }: { params: { slug: string } 
         </div>
         <p className="mt-3 text-sm leading-relaxed">{artist.bio}</p>
         <div className="mt-4 border-2 border-stencil bg-stencilsoft p-4 text-sm leading-relaxed">
-          <div className="font-head text-lg font-bold uppercase text-stencil">Deposit & cancellation terms</div>
+          <div className="font-head text-lg font-bold uppercase text-stencil">Your deposit, handled safely</div>
           <ul className="mt-2 list-disc pl-5 text-ink">
             <li>R{artist.depositAmount} deposit secures your slot — held by Stencil, not paid to the artist upfront.</li>
-            <li>Full refund if {artist.name.split(" ")[0]} cancels.</li>
-            <li>Reschedule free up to 72 hours before. Inside 72 hours, the deposit is forfeited.</li>
             <li>Deposit comes off your final session price at the studio.</li>
+            <li>Reschedule free up to 72 hours before. Inside 72 hours, the deposit is forfeited.</li>
+            <li>Full refund if {artist.name.split(" ")[0]} cancels.</li>
           </ul>
         </div>
       </div>
