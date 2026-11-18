@@ -85,9 +85,10 @@ function BookingCard({ b }: { b: Booking }) {
   );
 }
 
-export default async function Dashboard({ searchParams }: { searchParams: { as?: string } }) {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ as?: string }> }) {
+  const { as } = await searchParams;
   const artists = await getArtists();
-  const me = artists.find((a) => a.slug === searchParams.as) ?? artists[0];
+  const me = artists.find((a) => a.slug === as) ?? artists[0];
   const bookings = await getBookingsForArtist(me.id);
   const ledger = await getLedgerForArtist(me.id);
 

@@ -4,8 +4,9 @@ import { getArtistBySlug } from "@/lib/store";
 
 const SLOTS = ["Thu 9 Jul · 10:00", "Fri 10 Jul · 14:00", "Sat 11 Jul · 09:00", "Tue 14 Jul · 11:00", "Wed 15 Jul · 15:00", "Mon 20 Jul · 10:00"];
 
-export default async function ArtistPage({ params }: { params: { slug: string } }) {
-  const artist = await getArtistBySlug(params.slug);
+export default async function ArtistPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const artist = await getArtistBySlug(slug);
   if (!artist) notFound();
 
   return (

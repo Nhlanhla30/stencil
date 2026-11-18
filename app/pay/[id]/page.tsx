@@ -3,8 +3,9 @@ import { simulatePayDeposit } from "@/app/actions";
 import { getArtistById, getBooking } from "@/lib/store";
 import { createDepositCheckout, yocoConfigured } from "@/lib/yoco";
 
-export default async function PayPage({ params }: { params: { id: string } }) {
-  const booking = await getBooking(params.id);
+export default async function PayPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const booking = await getBooking(id);
   if (!booking) notFound();
   const artist = await getArtistById(booking.artistId);
   if (!artist) notFound();

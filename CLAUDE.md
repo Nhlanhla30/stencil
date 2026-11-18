@@ -64,10 +64,15 @@ Firestore collection op. When migrating to Firestore, change only the internals
 of these functions — nothing outside this file should learn about Firestore.
 
 ### Version decision
-Pinned to Next.js 14.2.35 (final patched release of the 14.2 line). Do NOT
-upgrade to 15/16 casually — it's scheduled to bundle with the Firestore/Yoco
-work, since params/searchParams become async and the whole escrow flow needs
-re-testing. See README.
+On Next.js 16.4.6 / React 19.3.1 (upgraded from 14.2.35 on the firestore-setup
+branch). The pin was lifted because the Firestore work — the agreed trigger —
+has started, and the Next 16 bump was the audit-identified fix for a critical
+RCE advisory. `params`/`searchParams` are now async in the four dynamic pages
+(/a/[slug], /b/[id], /pay/[id], /dashboard); firebase-admin is kept out of the
+bundle via the top-level `serverExternalPackages` key. The escrow flow still
+needs a full manual click-through (no automated tests in the repo yet) — run
+request → accept → pay → confirm → complete → release plus the decline / cancel
+/ no-show / late-cancel branches after any change touching it.
 
 ### Known demo stand-ins (not production code)
 - `?as=` switcher on /dashboard is NOT auth — Firebase Auth replaces it

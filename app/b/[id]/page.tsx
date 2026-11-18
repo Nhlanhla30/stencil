@@ -46,8 +46,9 @@ const STATUS_COPY: Record<BookingStatus, { title: string; body: string; tone: st
   },
 };
 
-export default async function BookingStatusPage({ params }: { params: { id: string } }) {
-  const booking = await getBooking(params.id);
+export default async function BookingStatusPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const booking = await getBooking(id);
   if (!booking) notFound();
   const artist = await getArtistById(booking.artistId);
   if (!artist) notFound();
