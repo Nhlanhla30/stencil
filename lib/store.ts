@@ -1,155 +1,83 @@
 /* ============================================================
-   Data store.
+   Data store — Firestore.
 
-   MVP: in-memory, persisted across hot reloads via globalThis.
-   This is fine for local demos and artist pitches. Before real
-   users: swap the internals of these functions for Firestore
-   (each function maps 1:1 to a collection read/write — see README).
+   This is the ONLY file that knows how data is stored. Every
+   exported function maps 1:1 to a Firestore collection op; nothing
+   outside this file imports firebase-admin or learns about Firestore.
 
-   Nothing outside this file knows how data is stored.
+   Collections:
+   - artists  (doc id = artist.id, the future Firebase Auth UID)
+   - bookings (top-level; doc id = crypto.randomUUID())
+   - ledger   (append-only; never updated or deleted)
+   - slugs    (reservation docs enforcing artist slug uniqueness)
    ============================================================ */
 
-import { applyArtistAction, applyDepositPaid, assertMachineInvariants, newBookingRef } from "./escrow";
+import { db } from "./firebase-admin";
+import { applyArtistAction, applyDepositPaid, newBookingRef } from "./escrow";
 import type { Artist, ArtistAction, Booking, ClientInfo, LedgerEntry } from "./types";
 
 const BOOKING_FEE = 35; // Rand, flat, paid by client on top of deposit
 
-interface DB {
-  artists: Artist[];
-  bookings: Booking[];
-  ledger: LedgerEntry[];
-}
-
-const uid = () => Math.random().toString(36).slice(2, 12);
-
-function seed(): DB {
-  assertMachineInvariants();
-  const artists: Artist[] = [
-    {
-      id: "art_thandi",
-      slug: "thandi",
-      name: "Thandi Mokoena",
-      studio: "Blackline Collective",
-      area: "Braamfontein, JHB",
-      styles: ["Fine line", "Blackwork"],
-      bio: "Fine line botanicals and micro-blackwork. Custom work only — bring references, leave with something yours.",
-      depositAmount: 500,
-      hourlyRate: 1100,
-      instagram: "@thandi.ink",
-      active: true,
-    },
-    {
-      id: "art_ruan",
-      slug: "ruan",
-      name: "Ruan Kotze",
-      studio: "Iron & Ivy Tattoo",
-      area: "Melville, JHB",
-      styles: ["Traditional", "Neo-traditional"],
-      bio: "Bold will hold. American traditional and neo-trad. Walk-up flash days first Saturday of the month.",
-      depositAmount: 600,
-      hourlyRate: 1200,
-      instagram: "@ruan.tattoos",
-      active: true,
-    },
-    {
-      id: "art_lerato",
-      slug: "lerato",
-      name: "Lerato Dube",
-      studio: "Needlepoint Studio",
-      area: "Maboneng, JHB",
-      styles: ["Realism", "Blackwork"],
-      bio: "Black and grey realism — portraits, wildlife, large-scale sleeves. Consultation required for custom pieces.",
-      depositAmount: 800,
-      hourlyRate: 1400,
-      instagram: "@lerato.needlepoint",
-      active: true,
-    },
-  ];
-
-  // A couple of seeded bookings so the dashboard demos well
-  const now = Date.now();
-  const b1: Booking = {
-    id: uid(),
-    ref: newBookingRef(),
-    artistId: "art_thandi",
-    client: { name: "Sipho M.", email: "sipho@example.com", phone: "+27 82 000 0001" },
-    type: "Custom piece",
-    size: "Medium",
-    placement: "Forearm",
-    preferredSlot: "Tue 14 Jul · 11:00",
-    brief: "Protea with fine-line stem wrapping the forearm, ~10cm.",
-    status: "requested",
-    deposit: { state: "none", amount: 500, bookingFee: BOOKING_FEE },
-    createdAt: now - 1000 * 60 * 60 * 5,
-    updatedAt: now - 1000 * 60 * 60 * 5,
-  };
-  const b2: Booking = {
-    id: uid(),
-    ref: newBookingRef(),
-    artistId: "art_thandi",
-    client: { name: "Jess V.", email: "jess@example.com", phone: "+27 82 000 0002" },
-    type: "Artist's flash",
-    size: "Small",
-    placement: "Calf",
-    preferredSlot: "Wed 15 Jul · 15:00",
-    brief: "Flash #012 (moth), as-is.",
-    status: "confirmed",
-    deposit: { state: "held", amount: 500, bookingFee: BOOKING_FEE, paidAt: now - 1000 * 60 * 60 * 24 },
-    createdAt: now - 1000 * 60 * 60 * 30,
-    updatedAt: now - 1000 * 60 * 60 * 24,
-  };
-  const l2: LedgerEntry = {
-    id: uid(),
-    bookingId: b2.id,
-    bookingRef: b2.ref,
-    artistId: "art_thandi",
-    at: now - 1000 * 60 * 60 * 24,
-    event: "deposit_held",
-    amount: 500,
-    note: `Deposit held in escrow for ${b2.ref}`,
-  };
-
-  return { artists, bookings: [b1, b2], ledger: [l2] };
-}
-
-// Persist across Next.js dev hot-reloads
-const g = globalThis as unknown as { __stencilDb?: DB };
-function db(): DB {
-  if (!g.__stencilDb) g.__stencilDb = seed();
-  return g.__stencilDb;
-}
+const artists = () => db.collection("artists");
+const bookings = () => db.collection("bookings");
+const ledger = () => db.collection("ledger");
+const slugs = () => db.collection("slugs");
 
 /* ---------------- reads ---------------- */
 
 export async function getArtists(): Promise<Artist[]> {
-  return db().artists.filter((a) => a.active);
+  const snap = await artists().where("active", "==", true).get();
+  // Sort in memory (by name) so no composite index is needed for the listing.
+  return snap.docs
+    .map((d) => d.data() as Artist)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getArtistBySlug(slug: string): Promise<Artist | undefined> {
-  return db().artists.find((a) => a.slug === slug && a.active);
+  // Equality-only query — served without a composite index.
+  const snap = await artists().where("slug", "==", slug).where("active", "==", true).limit(1).get();
+  return snap.empty ? undefined : (snap.docs[0].data() as Artist);
 }
 
 export async function getArtistById(id: string): Promise<Artist | undefined> {
-  return db().artists.find((a) => a.id === id);
+  const doc = await artists().doc(id).get();
+  return doc.exists ? (doc.data() as Artist) : undefined;
 }
 
 export async function getBooking(id: string): Promise<Booking | undefined> {
-  return db().bookings.find((b) => b.id === id);
+  const doc = await bookings().doc(id).get();
+  return doc.exists ? (doc.data() as Booking) : undefined;
 }
 
 export async function getBookingsForArtist(artistId: string): Promise<Booking[]> {
-  return db()
-    .bookings.filter((b) => b.artistId === artistId)
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+  // Composite index: bookings (artistId ASC, updatedAt DESC) — firestore.indexes.json
+  const snap = await bookings().where("artistId", "==", artistId).orderBy("updatedAt", "desc").get();
+  return snap.docs.map((d) => d.data() as Booking);
 }
 
 export async function getLedgerForArtist(artistId: string): Promise<LedgerEntry[]> {
-  return db()
-    .ledger.filter((l) => l.artistId === artistId)
-    .sort((a, b) => b.at - a.at);
+  // Composite index: ledger (artistId ASC, at DESC) — firestore.indexes.json
+  const snap = await ledger().where("artistId", "==", artistId).orderBy("at", "desc").get();
+  return snap.docs.map((d) => d.data() as LedgerEntry);
 }
 
 /* ---------------- writes ---------------- */
+
+/**
+ * Create an artist, reserving its slug atomically. The slugs/{slug} doc is
+ * created with tx.create() in the same transaction as the artist — if the slug
+ * is taken, create() fails and neither write commits. This is race-safe in a
+ * way a query-then-write check is not.
+ */
+export async function createArtist(artist: Artist): Promise<Artist> {
+  await db.runTransaction(async (tx) => {
+    const slugRef = slugs().doc(artist.slug);
+    const artistRef = artists().doc(artist.id);
+    tx.create(slugRef, { artistId: artist.id });
+    tx.create(artistRef, artist);
+  });
+  return artist;
+}
 
 export async function createBookingRequest(input: {
   artistSlug: string;
@@ -163,9 +91,11 @@ export async function createBookingRequest(input: {
   const artist = await getArtistBySlug(input.artistSlug);
   if (!artist) throw new Error("Artist not found");
   const now = Date.now();
+  // crypto.randomUUID(): /b/[id] is public and the id is the only thing
+  // protecting the client's details, so it must be unguessable.
   const booking: Booking = {
-    id: uid(),
-    ref: newBookingRef(),
+    id: crypto.randomUUID(),
+    ref: newBookingRef(), // ST-xxxxx — human-facing display only, never a lookup key
     artistId: artist.id,
     client: input.client,
     type: input.type,
@@ -178,27 +108,40 @@ export async function createBookingRequest(input: {
     createdAt: now,
     updatedAt: now,
   };
-  db().bookings.push(booking);
+  await bookings().doc(booking.id).set(booking);
   return booking;
 }
 
 export async function performArtistAction(bookingId: string, action: ArtistAction): Promise<Booking> {
-  const d = db();
-  const idx = d.bookings.findIndex((b) => b.id === bookingId);
-  if (idx === -1) throw new Error("Booking not found");
-  const { booking, ledger } = applyArtistAction(d.bookings[idx], action);
-  d.bookings[idx] = booking;
-  d.ledger.push(...ledger);
-  return booking;
+  return db.runTransaction(async (tx) => {
+    const ref = bookings().doc(bookingId);
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new Error("Booking not found");
+
+    // Pure escrow function decides the transition. If it throws (illegal
+    // transition), we throw before any write and the transaction aborts.
+    const { booking, ledger: entries } = applyArtistAction(snap.data() as Booking, action);
+
+    tx.set(ref, booking);
+    for (const e of entries) tx.create(ledger().doc(e.id), e); // append-only
+    return booking;
+  });
 }
 
 export async function markDepositPaid(bookingId: string, yocoCheckoutId?: string): Promise<Booking> {
-  const d = db();
-  const idx = d.bookings.findIndex((b) => b.id === bookingId);
-  if (idx === -1) throw new Error("Booking not found");
-  const { booking, ledger } = applyDepositPaid(d.bookings[idx]);
-  if (yocoCheckoutId) booking.deposit.yocoCheckoutId = yocoCheckoutId;
-  d.bookings[idx] = booking;
-  d.ledger.push(...ledger);
-  return booking;
+  return db.runTransaction(async (tx) => {
+    const ref = bookings().doc(bookingId);
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new Error("Booking not found");
+
+    // applyDepositPaid throws unless status/deposit are awaiting_deposit/pending,
+    // so a second payment on an already-confirmed booking aborts the transaction
+    // and writes nothing.
+    const { booking, ledger: entries } = applyDepositPaid(snap.data() as Booking);
+    if (yocoCheckoutId) booking.deposit.yocoCheckoutId = yocoCheckoutId;
+
+    tx.set(ref, booking);
+    for (const e of entries) tx.create(ledger().doc(e.id), e); // append-only
+    return booking;
+  });
 }

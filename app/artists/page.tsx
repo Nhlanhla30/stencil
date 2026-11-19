@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { getArtists } from "@/lib/store";
 
+// Artists now live in Firestore; without this the list would be frozen at
+// build time by static prerendering. Render on every request instead.
+export const dynamic = "force-dynamic";
+
 export default async function ArtistsPage() {
   const artists = await getArtists();
   return (

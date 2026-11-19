@@ -50,6 +50,18 @@ function getApp(): App {
   return app;
 }
 
-export const db: Firestore =
-  globalForFirebase.firestore ??
-  (globalForFirebase.firestore = getFirestore(getApp()));
+function getDb(): Firestore {
+  if (globalForFirebase.firestore) return globalForFirebase.firestore;
+
+  const firestore = getFirestore(getApp());
+  // Firestore rejects documents containing `undefined` fields. Drop them
+  // instead, so optional fields (deposit.paidAt, settledAt, yocoCheckoutId)
+  // can simply be absent. settings() must run once, before any read/write —
+  // the globalThis cache guarantees we never call it twice in one process.
+  firestore.settings({ ignoreUndefinedProperties: true });
+
+  globalForFirebase.firestore = firestore;
+  return firestore;
+}
+
+export const db: Firestore = getDb();
